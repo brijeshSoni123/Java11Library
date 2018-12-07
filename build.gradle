@@ -1,0 +1,170 @@
+import org.springframework.util.ClassUtils
+
+import java.nio.file.Files
+import java.nio.file.Paths
+
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath("org.springframework.boot:spring-boot-gradle-plugin:2.1.0.RELEASE")
+    }
+}
+
+
+
+plugins {
+    id 'java'
+}
+
+apply plugin: 'maven'
+apply plugin: 'java'
+apply plugin: 'maven'
+apply plugin: 'eclipse'
+apply plugin: 'idea'
+apply plugin: 'org.springframework.boot'
+apply plugin: 'io.spring.dependency-management'
+
+group 'com.lib.book.library'
+version '1.0-SNAPSHOT'
+
+idea{
+        module {
+            downloadJavadoc = true
+            downloadSources = true
+        }
+}
+repositories {
+    mavenCentral()
+}
+sourceCompatibility = org.gradle.api.JavaVersion.VERSION_11
+targetCompatibility = org.gradle.api.JavaVersion.VERSION_11
+configurations.all {
+    exclude group: 'javax.annotation', module: 'javax.annotation-api'
+}
+
+springBoot{
+    mainClassName="com.lib.application.BookStoreApplication"
+}
+dependencies {
+    compile files('customlib/snakeyaml-1.23.jar')
+    compile files('customlib/byte-buddy-1.9.3.jar')
+    implementation 'org.springframework.boot:spring-boot-dependencies:2.1.0.RELEASE'
+    implementation 'org.springframework.boot:spring-boot-starter-web:2.1.0.RELEASE'
+    testCompile group: 'junit', name: 'junit', version: '4.12'
+    compile (group: 'org.springframework.boot', name: 'spring-boot-starter-parent', version:'2.1.0.RELEASE')
+    compile group: 'org.springframework.boot', name: 'spring-boot-starter-web', version:'2.1.0.RELEASE'
+    compile group: 'org.apache.tomcat', name: 'tomcat-annotations-api', version: '9.0.12'
+    compile group: 'org.springframework.boot', name: 'spring-boot-starter-data-jpa', version: '2.1.0.RELEASE'
+    compile group: 'org.springframework.boot', name: 'spring-boot-autoconfigure', version:'2.1.0.RELEASE'
+//    compile group: 'postgresql', name: 'postgresql', version: '9.1-901-1.jdbc4'
+    compile group: 'org.postgresql', name: 'postgresql', version: '9.3-1101-jdbc41'
+
+    testCompile group: 'junit', name: 'junit', version: '4.12'
+}
+dependencyManagement{
+    imports {
+        mavenBom("org.springframework.boot:spring-boot-dependencies:2.1.0.RELEASE")
+    }
+}
+String dependancyPath = '';
+ext.moduleName = 'com.lib'
+compileJava {
+    options.compilerArgs += ["--add-modules", "java.annotation-api"]
+    inputs.property("moduleName", moduleName)
+
+    doFirst {
+//        System.out.print("************"+classpath.asPath)
+        options.compilerArgs = [
+                '--module-path', classpath.asPath
+        ]
+        classpath = files()
+    }
+
+    dependancyPath =  classpath.asPath
+   System.out.println("Project Name:::::  "+project.name+"  "+options.compilerArgs + "  ")
+    ext.projectName =  "com.lib"
+    ext.appModulePaths=[ project.getProjectDir()]
+//    System.out.println("Project Name*******  "+projectName+ "  ^^^^  "+ ext.appModulePaths)
+}
+
+task(createCustomeJRE) {
+    doLast {
+        exec {
+            executable "C:/Program Files/Java/jdk-11.0.1/bin/jlink"
+            args = [
+                    '--module-path', 'D:/76007/WorkSpace/com.lib/build/libs;D:/76007/WorkSpace/com.lib/out/production',
+                    '--add-modules', 'com.lib',
+                    '--output', 'my-jre'
+            ]
+        }
+    }
+}
+
+task copyGradleDependencies{
+    copy {
+        from(configurations.runtime) into(libsDir)
+        System.out.println("LIB PATH***********  "+libsDir)
+    }
+}
+
+task createModularJar{
+
+    exec {
+        ignoreExitValue true
+        executable('C:\\Program Files\\Java\\jdk-11.0.1\\bin\\jar.exe')
+        args(['--verbose',
+              '--update',
+              '--file',
+              'D:\\76007\\WorkSpace\\com.lib\\build\\libs\\com.lib-1.0-SNAPSHOT.jar',
+              '--main-class',
+              'BookStoreApplication',
+              '--module-version',
+              '1.0',
+              '-C',
+              'D:\\76007\\WorkSpace\\com.lib\\build\\classes\\java\\main\\',
+              'module-info.class'
+        ] )
+    }
+}
+jar{
+    inputs.property("moduleName", moduleName)
+    manifest {
+        attributes('Automatic-Module-Name': moduleName)
+    }
+}
+
+
+//jdeps --module-path automatic-modules --generate-module-info . automatic-modules/commons-lang3-3.4.jar
+//C:\Users\harpilla\.gradle\caches\modules-2\files-2.1\ch.qos.logback\logback-classic\1.2.3\cfd5385e0c5ed1c8a5dce57d86e79cf357153a64\logback-classic-1.2.3-sources.jar
+/*
+task  copySourceJars(type:Exec){
+            String jarPath = 'temp'
+String jarfolder = ""
+String fileName = ""
+    String sourceFileName = ""
+    File file= new File('C:\\Users\\harpilla\\.gradle\\caches\\modules-2\\files-2.1')
+//exec {
+    dependancyPath = 'C:\\Users\\harpilla\\.gradle\\caches\\modules-2\\files-2.1\\ch.qos.logback\\logback-classic\\1.2.3\\7c4f3c474fb2c041d8028740440937705ebb473a\\logback-classic-1.2.3.jar'
+    ignoreExitValue true
+    for (String path : dependancyPath.split(";")){
+        fileName = new File(path).getName()
+jarfolder = path.replaceAll(new File(path).getName(),'')
+        sourceFileName =    fileName.replaceAll(".jar", "-sources")
+      Files.walk(Paths.get('C:\\User\\harpilla\\.gradle\\caches\\modules-2\\files-2.1\\')).filter{
+          l -> l.endsWith('.jar')
+      }.forEach{
+          l -> System.out.println(l)
+      }
+//              System.out.println(source[0].getAbsolutePath())
+//    executable('C:\\Program Files\\Java\\jdk-11.0.1\\bin\\jdeps.exe')
+//    args(['--module-path',
+//          'automatic-modules',
+//          '--generate-module-info',
+//          'D:\\76007\\WorkSpace\\newjar',
+//          jarPath
+//    ] )
+}
+}
+*/
